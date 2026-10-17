@@ -127,6 +127,23 @@ class CorpusTests(unittest.TestCase):
             self.assertEqual(Path(hits[0].path).name, "grocery_list.txt")
             store.close()
 
+    def test_same_size_edit_is_reembedded(self) -> None:
+        import os
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            note = root / "note.txt"
+            note.write_text("milk eggs and bread\n", encoding="utf-8")
+            before = note.stat()
+            found = discover([root])
+            store = IndexStore(root / "index.sqlite")
+            self.assertEqual(index_files(found, store, HashEmbedder(), max_files=10), (1, 0))
+            note.write_text("salt figs and bread\n", encoding="utf-8")
+            os.utime(note, ns=(before.st_atime_ns, before.st_mtime_ns))
+            self.assertEqual(note.stat().st_size, before.st_size)
+            self.assertEqual(index_files(found, store, HashEmbedder(), max_files=10), (1, 0))
+            store.close()
+
 
 class ResidentTests(unittest.TestCase):
     def test_ping_and_stop(self) -> None:

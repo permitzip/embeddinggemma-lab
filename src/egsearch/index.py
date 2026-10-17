@@ -138,15 +138,21 @@ def chunk_text(text: str) -> list[str]:
 
 
 def sha256_file(path: Path) -> str:
-    """Hash the whole file up to 512 MB. Larger media is identified by size plus both ends."""
+    """Hash the whole file up to 512 MB.
+
+    Larger media is identified by size, mtime, and both ends, so an in-place
+    edit in the middle of a huge file still changes the key.
+    """
     digest = hashlib.sha256()
-    size = path.stat().st_size
+    stat = path.stat()
+    size = stat.st_size
     digest.update(str(size).encode("ascii"))
     with path.open("rb") as handle:
         if size <= 512 * 1024 * 1024:
             for block in iter(lambda: handle.read(1024 * 1024), b""):
                 digest.update(block)
         else:
+            digest.update(str(stat.st_mtime_ns).encode("ascii"))
             digest.update(handle.read(8 * 1024 * 1024))
             handle.seek(max(0, size - 8 * 1024 * 1024))
             digest.update(handle.read(8 * 1024 * 1024))
